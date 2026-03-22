@@ -3,6 +3,8 @@ import { Geist, Geist_Mono, IBM_Plex_Sans_KR } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "./context/languageProvider";
 import LanguageToggle from "./components/LanguageToggle";
+import { Analytics } from "@vercel/analytics/next"
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +37,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${ibmPlexSansKr.variable} antialiased`}
       >
+       <Analytics />
         <LanguageProvider>
           <header className="fixed top-5 right-6 z-50 flex flex-row gap-2">
           
