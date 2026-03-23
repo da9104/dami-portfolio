@@ -4,6 +4,9 @@ import type {
   BlockObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints"
+import fs from "fs";
+import path from "path";
+
 
 if (!process.env.NOTION_DATASOURCE_ID || !process.env.NOTION_API_KEY) {
   throw new Error("Missing Notion environment variables: NOTION_DATASOURCE_ID and NOTION_API_KEY are required")
@@ -39,8 +42,8 @@ function pageToPost(page: PageObjectResponse): BlogPost {
   const title = props.Name?.title
     ? richTextToPlain(props.Name.title)
     : props.Title?.title
-    ? richTextToPlain(props.Title.title)
-    : "Untitled"
+      ? richTextToPlain(props.Title.title)
+      : "Untitled"
 
   const slug = props.Slug?.rich_text?.length
     ? richTextToPlain(props.Slug.rich_text)
@@ -126,11 +129,33 @@ export async function getBlocks(blockId: string): Promise<Block[]> {
       if (b.has_children) {
         b.children = await getBlocks(b.id)
       }
+      if (b.type === 'image' && b.image.type === 'file' && b.image.file.url) {
+        try {
+          const imageName = `${block.id}.jpg`
+          const imagePath = path.join(process.cwd(), 'public', 'notion-images', imageName)
+
+          // Only download if not already cached on disk
+          if (!fs.existsSync(imagePath)) {
+            const imgResponse = await fetch(b.image.file.url)
+            if (!imgResponse.ok) throw new Error(`Failed to fetch image: ${imgResponse.statusText}`)
+            const buffer = Buffer.from(await imgResponse.arrayBuffer())
+            fs.mkdirSync(path.dirname(imagePath), { recursive: true })
+            fs.writeFileSync(imagePath, buffer)
+          }
+
+          // Replace expiring Notion URL with stable local path
+          ;(b.image.file as any).url = `/notion-images/${imageName}`
+        } catch (error) {
+          console.error(`Error caching image for block ${b.id}:`, error)
+        }
+      }
       blocks.push(b)
     }
-
+    
     cursor = response.next_cursor ?? undefined
   } while (cursor)
+
+
 
   return blocks
 }
